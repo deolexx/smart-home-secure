@@ -1,0 +1,74 @@
+spring:
+  application:
+    name: smart-home-hub
+  datasource:
+    url: jdbc:h2:mem:smarthome;DB_CLOSE_DELAY=-1;MODE=PostgreSQL
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+  jpa:
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        format_sql: true
+    show-sql: false
+  jackson:
+    serialization:
+      write-dates-as-timestamps: false
+
+server:
+  port: 8080
+
+security:
+  jwt:
+    # 256-bit base64 secret (example only; replace for production)
+    # base64("0123456789abcdef0123456789abcdef") -> 32 bytes (OK for HS256)
+    secret-base64: MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=
+    issuer: smart-home-hub
+    expiration-seconds: 3600
+
+app:
+  bootstrap:
+    admin:
+      enabled: true
+      username: admin
+      email: admin@local
+      # CHANGE ME (dev only)
+      password: admin123!
+
+mqtt:
+  broker-url: ssl://localhost:8883
+  tls-enabled: true
+  client-id: hub-gateway
+  telemetry-topic-filter: devices/+/telemetry
+  command-topic-format: devices/%s/cmd
+  # TLS keystore/truststore - provide valid files to enable MQTTS mutual TLS
+  keystore-path: ""
+  keystore-password: ""
+  key-password: ""
+  truststore-path: ""
+  truststore-password: ""
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: when_authorized
+
+---
+spring:
+  config:
+    activate:
+      on-profile: prod
+server:
+  port: 8443
+  ssl:
+    enabled: true
+    key-store: file:config/tls/server-keystore.p12
+    key-store-password: changeit
+    key-store-type: PKCS12
+    key-alias: server
