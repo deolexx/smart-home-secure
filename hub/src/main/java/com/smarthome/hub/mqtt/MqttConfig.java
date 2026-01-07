@@ -59,6 +59,11 @@ public class MqttConfig {
 			tmf.init(ts);
 		}
 
+		// If no keystore or truststore provided, use default SSL context (for development)
+		if (kmf == null && tmf == null) {
+			return SSLContext.getDefault();
+		}
+
 		SSLContext sslContext = SSLContext.getInstance("TLSv1.3");
 		sslContext.init(kmf != null ? kmf.getKeyManagers() : null, tmf != null ? tmf.getTrustManagers() : null, null);
 		return sslContext;
@@ -67,8 +72,8 @@ public class MqttConfig {
 	@Getter
 	@Setter
 	public static class MqttProperties {
-		private String brokerUrl = "ssl://localhost:8883";
-		private boolean tlsEnabled = true;
+		private String brokerUrl = "tcp://localhost:1883";
+		private boolean tlsEnabled = false;
 		private String clientId = "hub-gateway";
 		private String telemetryTopicFilter = "devices/+/telemetry";
 		private String commandTopicFormat = "devices/%s/cmd";

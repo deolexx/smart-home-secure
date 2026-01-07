@@ -1,0 +1,140 @@
+version: '3.9'
+
+services:
+  keycloak:
+    image: quay.io/keycloak/keycloak:25.0
+    container_name: smart-home-keycloak
+    command: start-dev
+    environment:
+      - KEYCLOAK_ADMIN=admin
+      - KEYCLOAK_ADMIN_PASSWORD=admin123!
+      - KC_DB=postgres
+      - KC_DB_URL=jdbc:postgresql://keycloak-db:5432/keycloak
+      - KC_DB_USERNAME=keycloak
+      - KC_DB_PASSWORD=keycloak123
+      - KC_HTTP_ENABLED=true
+      - KC_HEALTH_ENABLED=true
+    ports:
+      - "8090:8080"
+    depends_on:
+      keycloak-db:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - smart-home-network
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8080/health/ready || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  keycloak-db:
+    image: postgres:16-alpine
+    container_name: smart-home-keycloak-db
+    environment:
+      - POSTGRES_DB=keycloak
+      - POSTGRES_USER=keycloak
+      - POSTGRES_PASSWORD=keycloak123
+    volumes:
+      - keycloak-db-data:/var/lib/postgresql/data
+    restart: unless-stopped
+    networks:
+      - smart-home-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U keycloak"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: smart-home-postgres
+    environment:
+      - POSTGRES_DB=smarthome
+      - POSTGRES_USER=smarthome
+      - POSTGRES_PASSWORD=smarthome123
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    restart: unless-stopped
+    networks:
+      - smart-home-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U smarthome"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  mosquitto:
+    image: eclipse-mosquitto:2
+    container_name: smart-home-mosquitto
+    ports:
+      - "8883:8883"
+      - "1883:1883"
+    volumes:
+      - ./deploy/mosquitto/config/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      - ./deploy/mosquitto/certs:/mosquitto/certs:ro
+    restart: unless-stopped
+    networks:
+      - smart-home-network
+
+  hub:
+    build:
+      context: .
+      dockerfile: hub/Dockerfile
+    container_name: smart-home-hub
+    ports:
+      - "8080:8080"
+    environment:
+      - SPRING_PROFILES_ACTIVE=default
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/smarthome
+      - SPRING_DATASOURCE_USERNAME=smarthome
+      - SPRING_DATASOURCE_PASSWORD=smarthome123
+      - SPRING_DATASOURCE_DRIVER_CLASS_NAME=org.postgresql.Driver
+      - MQTT_BROKER_URL=tcp://mosquitto:1883
+      - MQTT_TLS_ENABLED=false
+      - KEYCLOAK_ISSUER_URI=http://keycloak:8080/realms/smarthome
+      - KEYCLOAK_CLIENT_ID=smart-home-hub
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mosquitto:
+        condition: service_started
+      keycloak:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - smart-home-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  device-simulator:
+    build:
+      context: .
+      dockerfile: device-simulator/Dockerfile
+    container_name: smart-home-device-simulator
+    environment:
+      - SIM_BROKER_URL=tcp://mosquitto:1883
+      - SIM_CLIENT_ID=device-sim-$${RANDOM}
+    depends_on:
+      mosquitto:
+        condition: service_started
+      hub:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - smart-home-network
+
+volumes:
+  postgres-data:
+  keycloak-db-data:
+
+networks:
+  smart-home-network:
+    driver: bridge

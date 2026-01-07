@@ -4,7 +4,6 @@ import com.smarthome.hub.domain.Role;
 import com.smarthome.hub.domain.User;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
 import org.springframework.beans.factory.annotation.Value;
@@ -37,22 +36,22 @@ public class JwtTokenService {
 		Instant now = Instant.now();
 		Set<String> roles = user.getRoles().stream().map(Role::getName).map(Enum::name).collect(Collectors.toSet());
 		return Jwts.builder()
-				.setSubject(user.getUsername())
-				.setIssuer(issuer)
-				.setIssuedAt(Date.from(now))
-				.setExpiration(Date.from(now.plusSeconds(expirationSeconds)))
+				.subject(user.getUsername())
+				.issuer(issuer)
+				.issuedAt(Date.from(now))
+				.expiration(Date.from(now.plusSeconds(expirationSeconds)))
 				.claim("roles", roles)
-				.signWith(key, SignatureAlgorithm.HS256)
+				.signWith(key)
 				.compact();
 	}
 
 	public Claims parseClaims(String token) {
-		return Jwts.parserBuilder()
-				.setSigningKey(key)
+		return Jwts.parser()
+				.verifyWith(key)
 				.requireIssuer(issuer)
 				.build()
-				.parseClaimsJws(token)
-				.getBody();
+				.parseSignedClaims(token)
+				.getPayload();
 	}
 }
 
