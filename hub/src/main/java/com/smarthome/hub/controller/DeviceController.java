@@ -7,6 +7,9 @@ import com.smarthome.hub.dto.UpdateDeviceRequest;
 import com.smarthome.hub.mapper.DeviceMapper;
 import com.smarthome.hub.service.DeviceService;
 import com.smarthome.hub.mqtt.MqttGateway;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -17,6 +20,8 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/devices")
+@Tag(name = "Devices", description = "API для управління IoT пристроями")
+@SecurityRequirement(name = "bearerAuth")
 public class DeviceController {
 
 	private final DeviceService deviceService;
@@ -31,12 +36,14 @@ public class DeviceController {
 
 	@GetMapping
 	@PreAuthorize("hasAnyRole('ADMIN','USER')")
+	@Operation(summary = "Список пристроїв", description = "Отримує список всіх пристроїв. Доступно для ADMIN та USER")
 	public List<DeviceDto> list() {
 		return deviceService.listDevices().stream().map(mapper::toDto).toList();
 	}
 
 	@PostMapping
 	@PreAuthorize("hasRole('ADMIN')")
+	@Operation(summary = "Створення пристрою", description = "Створює новий пристрій. Тільки для ADMIN")
 	public ResponseEntity<DeviceDto> create(@Valid @RequestBody CreateDeviceRequest request) {
 		Device created = deviceService.createDevice(request);
 		return ResponseEntity.created(URI.create("/api/devices/" + created.getId())).body(mapper.toDto(created));

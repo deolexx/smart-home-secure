@@ -1,24 +1,57 @@
 package com.smarthome.hub.controller;
 
+import com.smarthome.hub.dto.RegisterRequest;
+import com.smarthome.hub.service.UserService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 /**
- * Auth endpoints are now handled by Keycloak.
+ * Auth endpoints for user registration.
  * 
- * For registration and login, use Keycloak endpoints:
- * - Registration: POST http://localhost:8090/realms/smarthome/registrations
+ * For Keycloak authentication, use:
  * - Login: POST http://localhost:8090/realms/smarthome/protocol/openid-connect/token
- * 
- * Or use Keycloak Admin Console: http://localhost:8090
- * 
- * This controller provides information about Keycloak endpoints.
+ * - Or use Keycloak Admin Console: http://localhost:8090
  */
 @RestController
 @RequestMapping("/api/auth")
+@Tag(name = "Authentication", description = "API для реєстрації користувачів та отримання інформації про аутентифікацію")
 public class AuthController {
 
+	private final UserService userService;
+
+	public AuthController(UserService userService) {
+		this.userService = userService;
+	}
+
+	@PostMapping("/register")
+	@Operation(summary = "Реєстрація нового користувача", description = "Створює нового користувача в системі з роллю USER")
+	@ApiResponses(value = {
+			@ApiResponse(responseCode = "201", description = "Користувач успішно зареєстрований"),
+			@ApiResponse(responseCode = "400", description = "Невірні дані (користувач з таким username або email вже існує)"),
+			@ApiResponse(responseCode = "500", description = "Помилка сервера")
+	})
+	public ResponseEntity<?> register(@Valid @RequestBody RegisterRequest request) {
+		try {
+			userService.registerUser(request, false);
+			return ResponseEntity.status(HttpStatus.CREATED)
+					.body(new RegisterResponse("User registered successfully"));
+		} catch (IllegalArgumentException e) {
+			return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+					.body(new ErrorResponse(e.getMessage()));
+		} catch (IllegalStateException e) {
+			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+					.body(new ErrorResponse(e.getMessage()));
+		}
+	}
+
 	@GetMapping("/info")
+	@Operation(summary = "Інформація про аутентифікацію", description = "Повертає інформацію про Keycloak endpoints для аутентифікації")
 	public ResponseEntity<?> authInfo() {
 		return ResponseEntity.ok(new AuthInfo(
 				"http://localhost:8090/realms/smarthome/protocol/openid-connect/token",
@@ -34,5 +67,9 @@ public class AuthController {
 			String userInfoEndpoint,
 			String adminConsole
 	) {}
+
+	public record RegisterResponse(String message) {}
+
+	public record ErrorResponse(String error) {}
 }
 

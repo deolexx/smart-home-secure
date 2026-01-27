@@ -17,16 +17,14 @@ spring:
   jackson:
     serialization:
       write-dates-as-timestamps: false
-
-server:
-  port: 8080
-
-# Keycloak OAuth2 Configuration
   security:
     oauth2:
       resourceserver:
         jwt:
           issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:8090/realms/smarthome}
+
+server:
+  port: 8080
 
 # Keycloak client configuration
 keycloak:
@@ -51,10 +49,21 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info
+        include: health,info,metrics,env,configprops,beans,loggers,httptrace,threaddump,heapdump
   endpoint:
     health:
-      show-details: when_authorized
+      show-details: always
+
+# OpenAPI / Swagger configuration
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    enabled: true
+    operations-sorter: method
+    tags-sorter: alpha
+    try-it-out-enabled: true
 
 ---
 spring:
