@@ -59,6 +59,10 @@ public class MqttGateway implements MqttCallback {
 
 	@Override
 	public void messageArrived(String topic, MqttMessage message) {
+		if (message.isDuplicate()) {
+			log.debug("Skipping duplicate MQTT message on topic {}", topic);
+			return;
+		}
 		String payload = new String(message.getPayload());
 		log.debug("MQTT message on topic {} payload {}", topic, payload);
 		try {

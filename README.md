@@ -40,9 +40,9 @@
 
 ```
 hub/
-  - domain: User, Role, Device, DeviceTelemetry
+  - domain: Device, DeviceTelemetry
   - repository: JPA repositories
-  - service: UserService, DeviceService, TelemetryService
+  - service: DeviceService, TelemetryService
   - security: SecurityConfig, JwtTokenService, filters and handlers
   - mqtt: MqttConfig, MqttGateway
   - controller: AuthController, DeviceController, TelemetryController
@@ -71,14 +71,14 @@ deploy/mosquitto: TLS-enabled broker config
 
 **Аутентифікація через Keycloak**
 
-Реєстрація та вхід тепер обробляються через Keycloak:
+Реєстрація та вхід обробляються через Keycloak:
 
 - **Keycloak Admin Console**: http://localhost:8090
 - **Token Endpoint**: `POST http://localhost:8090/realms/smarthome/protocol/openid-connect/token`
 - **User Info Endpoint**: `GET http://localhost:8090/realms/smarthome/protocol/openid-connect/userinfo`
 
 **Функціонал:**
-- Реєстрація користувачів через Keycloak Admin Console або REST API
+- Реєстрація користувачів через Keycloak Admin API (через `/api/auth/register`) або Admin Console
 - Отримання JWT токенів від Keycloak
 - Автоматична валідація токенів Hub'ом
 - Ролі з Keycloak автоматично мапляться в Spring Security authorities
@@ -187,47 +187,26 @@ docker-compose down
 - **Hub** (Spring Boot API) на порту 8080
 - **Device Simulator** - автоматично підключається до MQTT
 
-### Запуск локально (без Docker)
-
-**Збірка:**
-```bash
-mvn clean package -DskipTests
-```
-
-**Запуск Hub:**
-```bash
-cd hub
-mvn spring-boot:run
-```
-
-**Запуск Device Simulator:**
-```bash
-cd device-simulator
-java -jar target/device-simulator-1.0.0-jar-with-dependencies.jar
-```
-
-**Запуск Mosquitto:**
-```bash
-cd deploy/mosquitto
-docker compose up -d
-```
-
----
-
 ## Keycloak Setup
 
 ### Швидкий старт
 
-Keycloak автоматично запускається з усім стеком. Після запуску:
+Keycloak запускається разом зі стеком. Після запуску виконайте bootstrap-скрипт:
 
-1. **Відкрийте Admin Console**: http://localhost:8090
-2. **Увійдіть**: Username: `admin`, Password: `admin123!`
-3. **Створіть Realm**: `smarthome`
-4. **Створіть Client**: `smart-home-hub`
-5. **Створіть Roles**: `ADMIN`, `USER`, `DEVICE`
-6. **Створіть користувачів** та призначте ролі
+**Windows (PowerShell):**
+```powershell
+.\deploy\keycloak\bootstrap.ps1
+```
 
-Детальні інструкції див. [KEYCLOAK-SETUP.md](KEYCLOAK-SETUP.md)
+**Linux/Mac (bash):**
+```bash
+./deploy/keycloak/bootstrap.sh
+```
+
+Скрипт створить realm `smarthome`, client `smart-home-hub`, ролі `ADMIN/USER/DEVICE`
+та admin-користувача в realm.
+
+Деталі див. [KEYCLOAK-SETUP.md](KEYCLOAK-SETUP.md)
 
 ### Отримання токену
 
@@ -370,13 +349,6 @@ docker-compose up -d
 docker-compose up -d device-simulator
 ```
 
-**Запуск локально:**
-```bash
-cd device-simulator
-mvn clean package
-java -jar target/device-simulator-1.0.0-jar-with-dependencies.jar
-```
-
 ### Конфігурація
 
 Device Simulator налаштовується через змінні середовища:
@@ -507,9 +479,9 @@ Response: {
 
 #### Реєстрація користувачів
 
-Реєстрація виконується через Keycloak Admin Console або REST API:
-- Admin Console: http://localhost:8090 → Users → Create new user
-- REST API: `POST http://localhost:8090/admin/realms/smarthome/users` (потрібен admin token)
+Є два варіанти:
+- **Hub API**: `POST /api/auth/register` (створює користувача в Keycloak через Admin API)
+- **Admin Console**: http://localhost:8090 → Users → Create new user
 
 **Використання токену:**
 ```
@@ -651,17 +623,10 @@ Authorization: Bearer <token>
 
 ### Таблиці
 
-1. **users** - користувачі системи
-   - id, username, email, password_hash, created_at, updated_at
-
-2. **roles** - ролі (ADMIN, USER, DEVICE)
-
-3. **user_roles** - зв'язок користувачів та ролей
-
-4. **devices** - IoT пристрої
+1. **devices** - IoT пристрої
    - id, name, type, status (ONLINE/OFFLINE), mqtt_client_id, created_at, updated_at
 
-5. **device_telemetry** - телеметрія пристроїв
+2. **device_telemetry** - телеметрія пристроїв
    - id, device_id, payload (JSON), created_at
 
 ---
@@ -670,12 +635,17 @@ Authorization: Bearer <token>
 
 ### Налаштування Keycloak
 
-Після першого запуску потрібно налаштувати Keycloak:
+Після першого запуску виконайте bootstrap-скрипт:
 
-1. Створити Realm: `smarthome`
-2. Створити Client: `smart-home-hub`
-3. Створити Roles: `ADMIN`, `USER`, `DEVICE`
-4. Створити користувачів та призначити ролі
+```bash
+./deploy/keycloak/bootstrap.sh
+```
+
+або на Windows:
+
+```powershell
+.\deploy\keycloak\bootstrap.ps1
+```
 
 Детальні інструкції: [KEYCLOAK-SETUP.md](KEYCLOAK-SETUP.md)
 
@@ -702,11 +672,10 @@ Authorization: Bearer <token>
 
 ### Authentication Flow
 
-1. User registers via `POST /api/auth/register` (ADMIN seeded separately)
-2. User logs in via `POST /api/auth/login` with credentials
-3. Hub issues JWT with roles claim and expiry
-4. Client calls secured endpoints with `Authorization: Bearer <token>`
-5. `JwtAuthenticationFilter` validates token and sets `SecurityContext`
+1. User registers via `POST /api/auth/register` (Hub creates user in Keycloak)
+2. User logs in via Keycloak token endpoint
+3. Client calls secured endpoints with `Authorization: Bearer <token>`
+4. Hub validates JWT via Keycloak issuer
 
 ---
 

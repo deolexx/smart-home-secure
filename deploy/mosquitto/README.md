@@ -11,29 +11,12 @@
 
 Для production потрібно:
 
-1. **Згенерувати сертифікати:**
-   ```bash
-   # Linux/Mac
-   ./generate-certs.sh
-   
-   # Windows
-   generate-certs.bat
-   ```
+1. **Підготувати сертифікати** (CA, server cert/key) у папці `certs`
 
 2. **Оновити конфігурацію** в `config/mosquitto.conf`:
    - Розкоментувати рядки з сертифікатами
    - Встановити `allow_anonymous false`
    - Встановити `require_certificate true`
-
-## Генерація сертифікатів
-
-Скрипти автоматично створють:
-- `ca.crt` - CA сертифікат
-- `ca.key` - CA приватний ключ
-- `server.crt` - серверний сертифікат
-- `server.key` - серверний приватний ключ
-
-**Вимоги:** Потрібен OpenSSL встановлений в системі.
 
 ## Примітки
 

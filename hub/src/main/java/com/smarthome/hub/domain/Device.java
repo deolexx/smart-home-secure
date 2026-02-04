@@ -40,10 +40,6 @@ public class Device {
 	@Column(length = 256)
 	private String certificateSubjectDn;
 
-	@ManyToOne(fetch = FetchType.LAZY)
-	@JoinColumn(name = "owner_id")
-	private User owner;
-
 	@CreationTimestamp
 	@Column(nullable = false, updatable = false)
 	private Instant createdAt;

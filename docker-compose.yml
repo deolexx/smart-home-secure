@@ -135,7 +135,6 @@ services:
     container_name: smart-home-device-simulator
     environment:
       - SIM_BROKER_URL=tcp://mosquitto:1883
-      - SIM_CLIENT_ID=device-sim-$${RANDOM}
       - SIM_TELEMETRY_INTERVAL_MS=5000
     depends_on:
       mosquitto:

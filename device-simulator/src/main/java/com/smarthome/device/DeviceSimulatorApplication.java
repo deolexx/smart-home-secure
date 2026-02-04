@@ -82,7 +82,10 @@ public class DeviceSimulatorApplication {
 			telemetry.put("status", "OK");
 			telemetry.put("ts", Instant.now().toString());
 			byte[] payload = mapper.writeValueAsBytes(telemetry);
-			client.publish(topicTelemetry, new MqttMessage(payload));
+			MqttMessage message = new MqttMessage(payload);
+			message.setQos(0);
+			message.setRetained(false);
+			client.publish(topicTelemetry, message);
 			Thread.sleep(telemetryIntervalMs);
 		}
 	}

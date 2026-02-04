@@ -8,6 +8,20 @@ Keycloak автоматично запускається з усім стеко�
 docker-compose up -d
 ```
 
+### Автоматичне налаштування (рекомендовано)
+
+Скрипти створюють realm, client, ролі та admin користувача в realm `smarthome`.
+
+**Windows (PowerShell):**
+```powershell
+.\deploy\keycloak\bootstrap.ps1
+```
+
+**Linux/Mac (bash):**
+```bash
+./deploy/keycloak/bootstrap.sh
+```
+
 ## Доступ до Keycloak
 
 - **Admin Console**: http://localhost:8090
