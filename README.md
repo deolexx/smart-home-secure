@@ -182,6 +182,10 @@ docker-compose logs -f
 docker-compose down
 ```
 
+### Аудит логів
+
+Hub зберігає аудит логів запитів у таблиці `audit_logs`. Логуються: користувач, ролі, метод, шлях, статус, тривалість, IP та User-Agent.
+
 Це запустить:
 - **Keycloak** на порту 8090 (IAM сервер)
 - **PostgreSQL Database** на порту 5432
