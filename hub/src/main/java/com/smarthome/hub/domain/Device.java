@@ -7,6 +7,7 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.Instant;
+import java.util.UUID;
 
 @Entity
 @Table(name = "devices")
@@ -18,8 +19,8 @@ import java.time.Instant;
 public class Device {
 
 	@Id
-	@GeneratedValue(strategy = GenerationType.IDENTITY)
-	private Long id;
+	@GeneratedValue(strategy = GenerationType.UUID)
+	private UUID id;
 
 	@NotBlank
 	@Column(nullable = false, length = 128)
@@ -36,6 +37,9 @@ public class Device {
 
 	@Column(length = 128)
 	private String mqttClientId;
+
+	@Column(length = 64)
+	private String ownerKeycloakId;
 
 	@Column(length = 256)
 	private String certificateSubjectDn;

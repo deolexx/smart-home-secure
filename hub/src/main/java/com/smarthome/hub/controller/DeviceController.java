@@ -20,10 +20,18 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.net.URI;
 import java.util.List;
+import java.util.UUID;
+
+import static org.springframework.http.HttpStatus.CONFLICT;
+import static org.springframework.http.HttpStatus.FORBIDDEN;
 
 @RestController
 @RequestMapping("/api/devices")
@@ -45,7 +53,11 @@ public class DeviceController {
 	@PreAuthorize("hasAnyRole('ADMIN','USER')")
 	@Operation(summary = "Список пристроїв", description = "Отримує список всіх пристроїв. Доступно для ADMIN та USER")
 	public List<DeviceDto> list() {
-		return deviceService.listDevices().stream().map(mapper::toDto).toList();
+		Authentication auth = currentAuth();
+		return deviceService.listDevicesForUser(currentUserId(auth), isAdmin(auth))
+				.stream()
+				.map(mapper::toDto)
+				.toList();
 	}
 
 	@PostMapping
@@ -58,26 +70,27 @@ public class DeviceController {
 
 	@GetMapping("/{id}")
 	@PreAuthorize("hasAnyRole('ADMIN','USER')")
-	public DeviceDto get(@PathVariable Long id) {
-		return mapper.toDto(deviceService.getDevice(id));
+	public DeviceDto get(@PathVariable UUID id) {
+		Authentication auth = currentAuth();
+		return mapper.toDto(deviceService.getDeviceForUser(id, currentUserId(auth), isAdmin(auth)));
 	}
 
 	@PutMapping("/{id}")
 	@PreAuthorize("hasRole('ADMIN')")
-	public DeviceDto update(@PathVariable Long id, @Valid @RequestBody UpdateDeviceRequest request) {
+	public DeviceDto update(@PathVariable UUID id, @Valid @RequestBody UpdateDeviceRequest request) {
 		return mapper.toDto(deviceService.updateDevice(id, request));
 	}
 
 	@DeleteMapping("/{id}")
 	@PreAuthorize("hasRole('ADMIN')")
-	public ResponseEntity<Void> delete(@PathVariable Long id) {
+	public ResponseEntity<Void> delete(@PathVariable UUID id) {
 		deviceService.deleteDevice(id);
 		return ResponseEntity.noContent().build();
 	}
 
 	@PostMapping("/{id}/commands")
 	@PreAuthorize("hasRole('ADMIN')")
-	public ResponseEntity<Void> sendCommand(@PathVariable Long id, @RequestBody String commandJson) {
+	public ResponseEntity<Void> sendCommand(@PathVariable UUID id, @RequestBody String commandJson) {
 		var device = deviceService.getDevice(id);
 		if (device.getMqttClientId() == null || device.getMqttClientId().isBlank()) {
 			return ResponseEntity.badRequest().build();
@@ -86,12 +99,12 @@ public class DeviceController {
 		return ResponseEntity.accepted().build();
 	}
 
-	@PostMapping("/{id}/temperature-unit")
+	@PostMapping("/by-client/{clientId}/temperature-unit")
 	@PreAuthorize("hasRole('ADMIN')")
-	@Operation(summary = "Зміна одиниць температури", description = "Надсилає команду для зміни C/F через MQTT")
+	@Operation(summary = "Зміна одиниць температури (MQTT client id)", description = "Надсилає команду для зміни C/F за mqttClientId")
 	@ApiResponses({
 		@ApiResponse(responseCode = "202", description = "Command accepted"),
-		@ApiResponse(responseCode = "400", description = "Device has no MQTT client id or invalid request")
+		@ApiResponse(responseCode = "400", description = "Invalid request")
 	})
 	@RequestBody(
 		description = "Temperature unit command",
@@ -104,15 +117,69 @@ public class DeviceController {
 			}
 		)
 	)
-	public ResponseEntity<Void> setTemperatureUnit(@PathVariable Long id, @Valid @RequestBody TemperatureUnitCommandRequest request) {
-		var device = deviceService.getDevice(id);
+	public ResponseEntity<Void> setTemperatureUnitByClientId(@PathVariable UUID clientId,
+	                                                         @Valid @RequestBody(required = false) TemperatureUnitCommandRequest request,
+	                                                         @RequestParam(name = "unit", required = false) String unitParam) {
+		var device = deviceService.getDeviceByClientId(clientId.toString());
 		if (device.getMqttClientId() == null || device.getMqttClientId().isBlank()) {
 			return ResponseEntity.badRequest().build();
 		}
-		String unit = request.getUnit().trim().toUpperCase();
-		String commandJson = String.format("{\"unit\":\"%s\"}", unit);
-		mqttGateway.sendCommand(device.getMqttClientId(), commandJson);
+		String unit = extractUnit(request, unitParam);
+		if (unit == null || unit.isBlank()) {
+			return ResponseEntity.badRequest().build();
+		}
+		mqttGateway.sendCommand(device.getMqttClientId(), temperatureUnitCommand(unit));
 		return ResponseEntity.accepted().build();
+	}
+
+	@PostMapping("/{id}/claim")
+	@PreAuthorize("hasAnyRole('ADMIN','USER')")
+	@Operation(summary = "Прив'язати пристрій до користувача", description = "Користувач може забрати вільний пристрій")
+	@ApiResponses({
+		@ApiResponse(responseCode = "200", description = "Device claimed"),
+		@ApiResponse(responseCode = "409", description = "Device already claimed")
+	})
+	public DeviceDto claim(@PathVariable UUID id) {
+		Authentication auth = currentAuth();
+		try {
+			return mapper.toDto(deviceService.claimDevice(id, currentUserId(auth)));
+		} catch (IllegalStateException ex) {
+			throw new ResponseStatusException(CONFLICT, ex.getMessage());
+		}
+	}
+
+	private String temperatureUnitCommand(String unit) {
+		String normalized = unit.trim().toUpperCase();
+		if (!"C".equals(normalized) && !"F".equals(normalized)) {
+			throw new IllegalArgumentException("unit must be C or F");
+		}
+		return String.format("{\"unit\":\"%s\"}", normalized);
+	}
+
+	private String extractUnit(TemperatureUnitCommandRequest request, String unitParam) {
+		if (request != null && request.getUnit() != null) {
+			return request.getUnit();
+		}
+		return unitParam;
+	}
+
+	private Authentication currentAuth() {
+		Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+		if (auth == null) {
+			throw new ResponseStatusException(FORBIDDEN, "Access denied");
+		}
+		return auth;
+	}
+
+	private boolean isAdmin(Authentication auth) {
+		return auth.getAuthorities().stream().anyMatch(a -> "ROLE_ADMIN".equals(a.getAuthority()));
+	}
+
+	private String currentUserId(Authentication auth) {
+		if (auth instanceof JwtAuthenticationToken jwtAuth) {
+			return jwtAuth.getToken().getSubject();
+		}
+		return auth.getName();
 	}
 }
 

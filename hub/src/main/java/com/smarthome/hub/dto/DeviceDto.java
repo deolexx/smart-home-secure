@@ -5,10 +5,11 @@ import com.smarthome.hub.domain.DeviceType;
 import lombok.Data;
 
 import java.time.Instant;
+import java.util.UUID;
 
 @Data
 public class DeviceDto {
-	private Long id;
+	private UUID id;
 	private String name;
 	private DeviceType type;
 	private DeviceStatus status;

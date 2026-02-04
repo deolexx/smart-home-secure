@@ -11,6 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.UUID;
 
 @Service
 public class TelemetryService {
@@ -33,7 +34,7 @@ public class TelemetryService {
 	}
 
 	@Transactional(readOnly = true)
-	public List<DeviceTelemetry> latest(Long deviceId) {
+	public List<DeviceTelemetry> latest(UUID deviceId) {
 		Device device = deviceRepository.findById(deviceId).orElseThrow();
 		return telemetryRepository.findTop100ByDeviceOrderByTimestampDesc(device);
 	}

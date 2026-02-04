@@ -94,14 +94,16 @@ deploy/mosquitto: TLS-enabled broker config
 
 - **GET /api/devices** - Список пристроїв (ADMIN, USER)
 - **POST /api/devices** - Створення пристрою (тільки ADMIN)
-- **GET /api/devices/{id}** - Отримання пристрою (ADMIN, USER)
-- **PUT /api/devices/{id}** - Оновлення пристрою (тільки ADMIN)
-- **DELETE /api/devices/{id}** - Видалення пристрою (тільки ADMIN)
-- **POST /api/devices/{id}/commands** - Надсилання команди пристрою (тільки ADMIN)
+- **GET /api/devices/{id}** - Отримання пристрою (ADMIN, USER) (`id` = UUID)
+- **PUT /api/devices/{id}** - Оновлення пристрою (тільки ADMIN) (`id` = UUID)
+- **DELETE /api/devices/{id}** - Видалення пристрою (тільки ADMIN) (`id` = UUID)
+- **POST /api/devices/{id}/commands** - Надсилання команди пристрою (тільки ADMIN) (`id` = UUID)
+- **POST /api/devices/{id}/claim** - Прив'язати вільний пристрій до користувача (ADMIN, USER) (`id` = UUID)
+- **POST /api/devices/by-client/{clientId}/temperature-unit** - Зміна одиниць температури (тільки ADMIN) (`clientId` = UUID)
 
 #### 3. Телеметрія
 
-- **GET /api/telemetry/devices/{deviceId}/latest** - Останні дані телеметрії (ADMIN, USER)
+- **GET /api/telemetry/devices/{deviceId}/latest** - Останні дані телеметрії (ADMIN, USER) (`deviceId` = UUID)
 
 #### 4. MQTT Gateway
 
@@ -111,7 +113,7 @@ deploy/mosquitto: TLS-enabled broker config
   1. Витягує `clientId` з топику
   2. Шукає пристрій за `mqttClientId` в базі даних
   3. Якщо пристрій знайдено - оновлює статус на ONLINE
-  4. Якщо пристрій не знайдено - автоматично створює новий пристрій
+  4. Якщо пристрій не знайдено - автоматично створює новий пристрій (без власника)
   5. Зберігає телеметрію в базу даних
 
 **Надсилання команд:**
@@ -429,10 +431,29 @@ mosquitto_sub -h localhost -p 1883 -t "devices/+/telemetry"
 
 **Через Hub API:**
 ```bash
-curl -X POST http://localhost:8080/api/devices/1/commands \
+curl -X POST http://localhost:8080/api/devices/DEVICE_UUID/commands \
   -H "Authorization: Bearer YOUR_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"action":"turn_on","value":true}'
+```
+
+### Прив'язка пристрою до користувача
+
+Поки пристрій не прив'язаний, він доступний усім користувачам у списку. Після прив'язки його бачить лише власник (або ADMIN).
+
+```bash
+curl -X POST http://localhost:8080/api/devices/DEVICE_UUID/claim \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+
+### Зміна одиниць температури (за mqttClientId)
+
+**Через Hub API:**
+```bash
+curl -X POST http://localhost:8080/api/devices/by-client/CLIENT_UUID/temperature-unit \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"unit":"F"}'
 ```
 
 **Напряму через MQTT:**
@@ -510,13 +531,13 @@ Content-Type: application/json
 
 #### Отримання пристрою
 ```bash
-GET /api/devices/{id}
+GET /api/devices/{id}  # id = UUID
 Authorization: Bearer <token>
 ```
 
 #### Оновлення пристрою (тільки ADMIN)
 ```bash
-PUT /api/devices/{id}
+PUT /api/devices/{id}  # id = UUID
 Authorization: Bearer <token>
 Content-Type: application/json
 
@@ -528,13 +549,13 @@ Content-Type: application/json
 
 #### Видалення пристрою (тільки ADMIN)
 ```bash
-DELETE /api/devices/{id}
+DELETE /api/devices/{id}  # id = UUID
 Authorization: Bearer <token>
 ```
 
 #### Надсилання команди пристрою (тільки ADMIN)
 ```bash
-POST /api/devices/{id}/commands
+POST /api/devices/{id}/commands  # id = UUID
 Authorization: Bearer <token>
 Content-Type: application/json
 
@@ -544,11 +565,28 @@ Content-Type: application/json
 }
 ```
 
+#### Прив'язати пристрій до користувача
+```bash
+POST /api/devices/{id}/claim  # id = UUID
+Authorization: Bearer <token>
+```
+
+#### Зміна одиниць температури (тільки ADMIN)
+```bash
+POST /api/devices/by-client/{clientId}/temperature-unit  # clientId = UUID
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "unit": "C"
+}
+```
+
 ### Телеметрія
 
 #### Останні дані телеметрії
 ```bash
-GET /api/telemetry/devices/{deviceId}/latest
+GET /api/telemetry/devices/{deviceId}/latest  # deviceId = UUID
 Authorization: Bearer <token>
 ```
 
