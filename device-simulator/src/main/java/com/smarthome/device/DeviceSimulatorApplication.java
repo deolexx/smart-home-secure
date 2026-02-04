@@ -14,6 +14,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicReference;
 
 @Slf4j
 public class DeviceSimulatorApplication {
@@ -24,6 +25,7 @@ public class DeviceSimulatorApplication {
 		long telemetryIntervalMs = Long.parseLong(getEnv("SIM_TELEMETRY_INTERVAL_MS", "5000"));
 		String topicTelemetry = "devices/" + clientId + "/telemetry";
 		String topicCmd = "devices/" + clientId + "/cmd";
+		AtomicReference<TempUnit> tempUnit = new AtomicReference<>(TempUnit.C);
 
 		String keystorePath = getEnv("SIM_KEYSTORE_PATH", "");
 		String keystorePassword = getEnv("SIM_KEYSTORE_PASSWORD", "");
@@ -51,7 +53,13 @@ public class DeviceSimulatorApplication {
 			}
 			@Override
 			public void messageArrived(String topic, MqttMessage message) {
-				log.info("Command received on {}: {}", topic, new String(message.getPayload()));
+				String payload = new String(message.getPayload());
+				log.info("Command received on {}: {}", topic, payload);
+				TempUnit nextUnit = parseUnitCommand(payload);
+				if (nextUnit != null && nextUnit != tempUnit.get()) {
+					tempUnit.set(nextUnit);
+					log.info("Temperature unit changed to {}", nextUnit);
+				}
 			}
 			@Override
 			public void deliveryComplete(IMqttDeliveryToken token) { }
@@ -64,14 +72,66 @@ public class DeviceSimulatorApplication {
 		ObjectMapper mapper = new ObjectMapper();
 		Random random = new Random();
 		while (true) {
+			TempUnit currentUnit = tempUnit.get();
+			double temperatureC = 20 + random.nextDouble() * 5;
+			double temperature = currentUnit == TempUnit.C ? temperatureC : TempUnit.toFahrenheit(temperatureC);
 			Map<String, Object> telemetry = new HashMap<>();
-			telemetry.put("temperature", 20 + random.nextDouble() * 5);
+			telemetry.put("temperature", temperature);
+			telemetry.put("unit", currentUnit.name());
 			telemetry.put("humidity", 40 + random.nextDouble() * 10);
 			telemetry.put("status", "OK");
 			telemetry.put("ts", Instant.now().toString());
 			byte[] payload = mapper.writeValueAsBytes(telemetry);
 			client.publish(topicTelemetry, new MqttMessage(payload));
 			Thread.sleep(telemetryIntervalMs);
+		}
+	}
+
+	private static TempUnit parseUnitCommand(String payload) {
+		String trimmed = payload.trim();
+		if (trimmed.equalsIgnoreCase("C")) {
+			return TempUnit.C;
+		}
+		if (trimmed.equalsIgnoreCase("F")) {
+			return TempUnit.F;
+		}
+		try {
+			ObjectMapper mapper = new ObjectMapper();
+			String unit = null;
+			var root = mapper.readTree(trimmed);
+			if (root.hasNonNull("unit")) {
+				unit = root.get("unit").asText();
+			} else if (root.hasNonNull("temperatureUnit")) {
+				unit = root.get("temperatureUnit").asText();
+			}
+			if (unit != null) {
+				return TempUnit.from(unit);
+			}
+		} catch (Exception ex) {
+			// ignore malformed command payloads
+		}
+		return null;
+	}
+
+	private enum TempUnit {
+		C,
+		F;
+
+		static TempUnit from(String value) {
+			if (value == null) {
+				return null;
+			}
+			if ("C".equalsIgnoreCase(value)) {
+				return C;
+			}
+			if ("F".equalsIgnoreCase(value)) {
+				return F;
+			}
+			return null;
+		}
+
+		static double toFahrenheit(double celsius) {
+			return (celsius * 9 / 5) + 32;
 		}
 	}
 
