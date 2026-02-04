@@ -21,6 +21,7 @@ public class DeviceSimulatorApplication {
 	public static void main(String[] args) throws Exception {
 		String brokerUrl = getEnv("SIM_BROKER_URL", "ssl://localhost:8883");
 		String clientId = getEnv("SIM_CLIENT_ID", "device-" + UUID.randomUUID());
+		long telemetryIntervalMs = Long.parseLong(getEnv("SIM_TELEMETRY_INTERVAL_MS", "5000"));
 		String topicTelemetry = "devices/" + clientId + "/telemetry";
 		String topicCmd = "devices/" + clientId + "/cmd";
 
@@ -70,7 +71,7 @@ public class DeviceSimulatorApplication {
 			telemetry.put("ts", Instant.now().toString());
 			byte[] payload = mapper.writeValueAsBytes(telemetry);
 			client.publish(topicTelemetry, new MqttMessage(payload));
-			Thread.sleep(5000);
+			Thread.sleep(telemetryIntervalMs);
 		}
 	}
 
