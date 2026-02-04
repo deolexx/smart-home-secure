@@ -31,6 +31,14 @@ keycloak:
   client-id: ${KEYCLOAK_CLIENT_ID:smart-home-hub}
   realm: smarthome
   server-url: ${KEYCLOAK_SERVER_URL:http://localhost:8090}
+  admin:
+    server-url: ${KEYCLOAK_SERVER_URL:http://localhost:8090}
+    realm: ${KEYCLOAK_REALM:smarthome}
+    admin-realm: ${KEYCLOAK_ADMIN_REALM:master}
+    admin-client-id: ${KEYCLOAK_ADMIN_CLIENT_ID:admin-cli}
+    admin-client-secret: ${KEYCLOAK_ADMIN_CLIENT_SECRET:}
+    admin-username: ${KEYCLOAK_ADMIN_USERNAME:admin}
+    admin-password: ${KEYCLOAK_ADMIN_PASSWORD:admin123!}
 
 mqtt:
   broker-url: ${MQTT_BROKER_URL:tcp://localhost:1883}

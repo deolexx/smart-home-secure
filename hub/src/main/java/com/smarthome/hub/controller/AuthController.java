@@ -1,7 +1,7 @@
 package com.smarthome.hub.controller;
 
 import com.smarthome.hub.dto.RegisterRequest;
-import com.smarthome.hub.service.UserService;
+import com.smarthome.hub.service.KeycloakAdminService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
@@ -23,14 +23,14 @@ import org.springframework.web.bind.annotation.*;
 @Tag(name = "Authentication", description = "API для реєстрації користувачів та отримання інформації про аутентифікацію")
 public class AuthController {
 
-	private final UserService userService;
+	private final KeycloakAdminService keycloakAdminService;
 
-	public AuthController(UserService userService) {
-		this.userService = userService;
+	public AuthController(KeycloakAdminService keycloakAdminService) {
+		this.keycloakAdminService = keycloakAdminService;
 	}
 
 	@PostMapping("/register")
-	@Operation(summary = "Реєстрація нового користувача", description = "Створює нового користувача в системі з роллю USER")
+	@Operation(summary = "Реєстрація нового користувача", description = "Створює нового користувача в Keycloak з роллю USER")
 	@ApiResponses(value = {
 			@ApiResponse(responseCode = "201", description = "Користувач успішно зареєстрований"),
 			@ApiResponse(responseCode = "400", description = "Невірні дані (користувач з таким username або email вже існує)"),
@@ -38,7 +38,7 @@ public class AuthController {
 	})
 	public ResponseEntity<?> register(@Valid @RequestBody RegisterRequest request) {
 		try {
-			userService.registerUser(request, false);
+			keycloakAdminService.registerUser(request, false);
 			return ResponseEntity.status(HttpStatus.CREATED)
 					.body(new RegisterResponse("User registered successfully"));
 		} catch (IllegalArgumentException e) {

@@ -108,6 +108,9 @@ services:
       - MQTT_TLS_ENABLED=false
       - KEYCLOAK_ISSUER_URI=http://keycloak:8080/realms/smarthome
       - KEYCLOAK_CLIENT_ID=smart-home-hub
+      - KEYCLOAK_SERVER_URL=http://keycloak:8080
+      - KEYCLOAK_ADMIN_USERNAME=admin
+      - KEYCLOAK_ADMIN_PASSWORD=admin123!
     depends_on:
       postgres:
         condition: service_healthy
