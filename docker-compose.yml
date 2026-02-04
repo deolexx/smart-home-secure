@@ -71,9 +71,22 @@ services:
     ports:
       - "8883:8883"
       - "1883:1883"
+      - "9001:9001"
     volumes:
       - ./deploy/mosquitto/config/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
       - ./deploy/mosquitto/certs:/mosquitto/certs:ro
+    restart: unless-stopped
+    networks:
+      - smart-home-network
+
+  mqttx-web:
+    image: emqx/mqttx-web:latest
+    container_name: smart-home-mqttx-web
+    ports:
+      - "8081:80"
+    depends_on:
+      mosquitto:
+        condition: service_started
     restart: unless-stopped
     networks:
       - smart-home-network
