@@ -1,0 +1,17 @@
+# Development configuration - allows connections without certificates
+listener 8883
+protocol mqtt
+allow_anonymous true
+
+# TLS settings (optional for dev)
+# cafile /mosquitto/certs/ca.crt
+# certfile /mosquitto/certs/server.crt
+# keyfile /mosquitto/certs/server.key
+
+# Mutual TLS disabled for development
+# require_certificate false
+# use_identity_as_username false
+
+# Logging
+log_timestamp true
+log_type all

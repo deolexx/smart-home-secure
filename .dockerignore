@@ -1,0 +1,36 @@
+# Git
+.git
+.gitignore
+
+# IDE
+.idea
+.vscode
+*.iml
+*.ipr
+*.iws
+
+# Build artifacts
+target/
+**/target/
+*.jar
+*.war
+*.ear
+
+# Logs
+*.log
+logs/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Bat files (replaced by Docker)
+*.bat
+
+# Documentation
+README.md
+*.md
+
+# Docker files (don't copy into build context)
+docker-compose*.yml
+Dockerfile*
