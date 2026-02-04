@@ -29,6 +29,7 @@ server:
 # Keycloak client configuration
 keycloak:
   client-id: ${KEYCLOAK_CLIENT_ID:smart-home-hub}
+  client-secret: ${KEYCLOAK_CLIENT_SECRET:}
   realm: smarthome
   server-url: ${KEYCLOAK_SERVER_URL:http://localhost:8090}
   admin:

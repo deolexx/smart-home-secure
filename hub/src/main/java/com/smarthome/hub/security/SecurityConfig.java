@@ -12,7 +12,6 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
-import org.springframework.security.oauth2.server.resource.web.authentication.BearerTokenAuthenticationFilter;
 import org.springframework.security.web.SecurityFilterChain;
 
 import java.util.Collection;
@@ -23,14 +22,10 @@ public class SecurityConfig {
 
     private final RestAuthenticationEntryPoint authenticationEntryPoint;
     private final RestAccessDeniedHandler accessDeniedHandler;
-    private final TestTokenAuthenticationFilter testTokenAuthenticationFilter;
-
     public SecurityConfig(RestAuthenticationEntryPoint authenticationEntryPoint,
-                          RestAccessDeniedHandler accessDeniedHandler,
-                          TestTokenAuthenticationFilter testTokenAuthenticationFilter) {
+                          RestAccessDeniedHandler accessDeniedHandler) {
         this.authenticationEntryPoint = authenticationEntryPoint;
         this.accessDeniedHandler = accessDeniedHandler;
-        this.testTokenAuthenticationFilter = testTokenAuthenticationFilter;
     }
 
     @Bean
@@ -41,13 +36,9 @@ public class SecurityConfig {
                 .exceptionHandling(ex -> ex
                         .authenticationEntryPoint(authenticationEntryPoint)
                         .accessDeniedHandler(accessDeniedHandler))
-                // Додаємо тестовий фільтр перед OAuth2 Resource Server фільтром
-                .addFilterBefore(testTokenAuthenticationFilter, BearerTokenAuthenticationFilter.class)
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/actuator/**").permitAll()
                         .requestMatchers("/api/auth/**").permitAll() // Keycloak handles auth
-                        .requestMatchers("/api/test/auth/login").permitAll() // Test login endpoint
-                        .requestMatchers("/api/test/**").authenticated() // Test endpoints require auth (test token or JWT)
                         .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html").permitAll() // OpenAPI/Swagger
                         .anyRequest().authenticated()
                 )
@@ -55,7 +46,6 @@ public class SecurityConfig {
                         .jwt(jwt -> jwt
                                 .jwtAuthenticationConverter(jwtAuthenticationConverter())
                         )
-                        .bearerTokenResolver(new TestBearerTokenResolver())
                 );
         return http.build();
     }

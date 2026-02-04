@@ -1,6 +1,8 @@
 package com.smarthome.hub.controller;
 
+import com.smarthome.hub.dto.LoginRequest;
 import com.smarthome.hub.dto.RegisterRequest;
+import com.smarthome.hub.service.KeycloakTokenService;
 import com.smarthome.hub.service.KeycloakAdminService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -10,6 +12,7 @@ import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.client.HttpClientErrorException;
 
 /**
  * Auth endpoints for user registration.
@@ -24,9 +27,11 @@ import org.springframework.web.bind.annotation.*;
 public class AuthController {
 
 	private final KeycloakAdminService keycloakAdminService;
+	private final KeycloakTokenService keycloakTokenService;
 
-	public AuthController(KeycloakAdminService keycloakAdminService) {
+	public AuthController(KeycloakAdminService keycloakAdminService, KeycloakTokenService keycloakTokenService) {
 		this.keycloakAdminService = keycloakAdminService;
+		this.keycloakTokenService = keycloakTokenService;
 	}
 
 	@PostMapping("/register")
@@ -47,6 +52,25 @@ public class AuthController {
 		} catch (IllegalStateException e) {
 			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
 					.body(new ErrorResponse(e.getMessage()));
+		}
+	}
+
+	@PostMapping("/token")
+	@Operation(summary = "Отримання токена", description = "Отримує access token через Keycloak (password grant)")
+	@ApiResponses(value = {
+			@ApiResponse(responseCode = "200", description = "Токен успішно отриманий"),
+			@ApiResponse(responseCode = "401", description = "Невірні облікові дані"),
+			@ApiResponse(responseCode = "500", description = "Помилка сервера")
+	})
+	public ResponseEntity<?> token(@Valid @RequestBody LoginRequest request) {
+		try {
+			return ResponseEntity.ok(keycloakTokenService.login(request.getUsername(), request.getPassword()));
+		} catch (HttpClientErrorException.Unauthorized | HttpClientErrorException.BadRequest ex) {
+			return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+					.body(new ErrorResponse("Invalid credentials"));
+		} catch (IllegalStateException ex) {
+			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+					.body(new ErrorResponse(ex.getMessage()));
 		}
 	}
 
