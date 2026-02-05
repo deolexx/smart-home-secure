@@ -14,7 +14,6 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.ExampleObject;
 import io.swagger.v3.oas.annotations.media.Schema;
-import io.swagger.v3.oas.annotations.parameters.RequestBody;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -106,7 +105,7 @@ public class DeviceController {
 		@ApiResponse(responseCode = "202", description = "Command accepted"),
 		@ApiResponse(responseCode = "400", description = "Invalid request")
 	})
-	@RequestBody(
+	@io.swagger.v3.oas.annotations.parameters.RequestBody(
 		description = "Temperature unit command",
 		required = true,
 		content = @Content(
